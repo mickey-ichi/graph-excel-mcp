@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 22, 24]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Claude Desktop extension packs and validates
+        run: node scripts/pack.js
+      - name: plugin/ is up to date with the server files
+        run: |
+          if ! git diff --exit-code -- plugin || [ -n "$(git status --porcelain -- plugin)" ]; then
+            echo "plugin/ is stale - run npm run pack and commit it"
+            exit 1
+          fi

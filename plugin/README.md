@@ -48,6 +48,16 @@ Instead of pasting the SharePoint URL every time, you can add aliases to `~/.gra
 - Every call runs inside a workbook session. Sessionless calls on large workbooks can time out with a 504 even though the write was applied.
 - Line breaks are sent as `\n`, which Excel stores as `\r\n`. If you write `\r\n` directly, the cell ends up with a stray `_x000D_`.
 
+## Release
+
+Bump `version` in `package.json`, run `npm run pack`, commit, then push a matching tag:
+
+```bash
+git tag v0.3.1 && git push origin v0.3.1
+```
+
+The `Publish` workflow runs the tests, publishes to npm through trusted publishing (no token or OTP; provenance attached) and creates a GitHub release with the `.mcpb` attached.
+
 ## License
 
 MIT

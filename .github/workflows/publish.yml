@@ -1,0 +1,38 @@
+name: Publish
+
+# Push a tag vX.Y.Z (matching package.json) to publish to npm and attach the .mcpb to a GitHub release.
+# npm side: the package's Trusted Publisher must point at this repo and this workflow file (publish.yml).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # GitHub release with the .mcpb
+  id-token: write # npm trusted publishing (OIDC): no token, no OTP, provenance attached
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: npm with trusted publishing support (>= 11.5.1)
+        run: npm install -g npm@^11.5.1
+      - name: Tag matches package.json version
+        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - run: npm test
+      - name: Build .mcpb and check plugin/ is up to date
+        run: |
+          node scripts/pack.js
+          if ! git diff --exit-code -- plugin || [ -n "$(git status --porcelain -- plugin)" ]; then
+            echo "plugin/ is stale - run npm run pack and commit it"
+            exit 1
+          fi
+      - run: npm publish --access public
+      - name: GitHub release with the Claude Desktop extension
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" build/*.mcpb --title "$GITHUB_REF_NAME" --generate-notes

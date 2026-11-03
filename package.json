@@ -39,6 +39,7 @@
   "scripts": {
     "login": "node mcp.js login",
     "mcp": "node mcp.js",
-    "pack": "node scripts/pack.js"
+    "pack": "node scripts/pack.js",
+    "test": "node --test test/*.test.js"
   }
 }
