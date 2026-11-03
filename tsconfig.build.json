@@ -1,0 +1,6 @@
+{
+  // Build to dist/ (.js) for npm installs, the .mcpb and the plugin: they run on Node >= 18 without type stripping.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "outDir": "dist", "rootDir": "src" },
+  "include": ["src"]
+}

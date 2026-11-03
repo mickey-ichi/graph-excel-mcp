@@ -1,13 +1,26 @@
-#!/usr/bin/env node
 // MCP server (stdio, JSON-RPC 2.0, one message per line) for editing Excel workbooks on SharePoint via Graph.
-// Same shape as backlog-bridge: writes are dry runs until send=true.
-const excel = require("./excel");
-const { silentToken, startLogin } = require("./graph");
+// Same shape as backlog-bridge: writes are dry runs until send=true. Zero dependencies.
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import * as excel from "./excel.ts";
+import { silentToken, startLogin } from "./graph.ts";
 
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
-const VERSION = require("./package.json").version;
+// src/ when running .ts directly, dist/ when running the build — both sit directly under the package root.
+// (import.meta.url rather than import.meta.dirname, so dist/ also runs on Node 18.)
+export const VERSION: string = JSON.parse(fs.readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")).version;
 
-const obj = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
+type Json = Record<string, unknown>;
+
+export interface Tool {
+  name: string;
+  description: string;
+  inputSchema: Json;
+  annotations?: Json;
+  call: (args: any) => Promise<unknown>;
+}
+
+const obj = (properties: Json, required: string[] = []) => ({ type: "object", properties, required, additionalProperties: false });
 const FILE = { type: "string", description: 'Workbook: SharePoint URL, an alias from ~/.graph-excel/workbooks.json, or "driveId:itemId"' };
 const SHEET = { type: "string", description: "Worksheet name exactly as listed by resolve" };
 const SEND = {
@@ -17,7 +30,7 @@ const SEND = {
 const readOnly = { readOnlyHint: true, openWorldHint: true };
 const write = { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
 
-const TOOLS = [
+export const TOOLS: Tool[] = [
   {
     name: "login_status",
     description:
@@ -63,10 +76,7 @@ const TOOLS = [
       {
         file: FILE,
         sheet: SHEET,
-        writes: {
-          type: "array",
-          items: obj({ range: { type: "string" }, values: {}, expected: {} }, ["range", "values"]),
-        },
+        writes: { type: "array", items: obj({ range: { type: "string" }, values: {}, expected: {} }, ["range", "values"]) },
         send: SEND,
       },
       ["file", "sheet", "writes"],
@@ -77,20 +87,16 @@ const TOOLS = [
   {
     name: "append_update",
     description:
-      `Write the 「${excel.SEP}」 part of test-case cells in one row (e.g. H/I/J) and keep the original part byte-identical. ` +
+      `Write the 「${excel.SEP}」 part of cells in one row (e.g. H/I/J) and keep the original part byte-identical. ` +
       "No separator yet: appends blank line + separator + text. Separator present: mode=replace (default) swaps the update part, " +
-      "mode=append adds after it. Line endings follow the cell. Pass `expected` per column (sha256 from read_range) as the base check. " +
+      "mode=append adds after it. Pass `expected` per column (sha256 from read_range) as the base check. " +
       "After writing it verifies the original part is intact, then fills `fillRange` (default the updated columns of that row) with `fill` (default #FFFF00; null = no fill).",
     inputSchema: obj(
       {
         file: FILE,
         sheet: SHEET,
         row: { type: "integer", minimum: 1 },
-        update: {
-          type: "object",
-          description: 'Column letter -> update text, e.g. {"H": "1. ...", "J": "..."}',
-          additionalProperties: { type: "string" },
-        },
+        update: { type: "object", description: 'Column letter -> update text, e.g. {"H": "1. ...", "J": "..."}', additionalProperties: { type: "string" } },
         expected: { type: "object", description: "Column letter -> exact current text or sha256:<hash>", additionalProperties: { type: "string" } },
         mode: { type: "string", enum: ["replace", "append"] },
         fill: { type: ["string", "null"] },
@@ -126,12 +132,20 @@ const INSTRUCTIONS = [
   "- If a call says not signed in, call login_status and give the user the code; never sign in for them.",
 ].join("\n");
 
-const reply = (id, result) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\n");
-const fail = (id, code, message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } }) + "\n");
+interface Message {
+  jsonrpc?: string;
+  id?: string | number | null;
+  method?: string;
+  params?: any;
+}
 
-async function handle(msg) {
+const send = (msg: Json): void => void process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...msg }) + "\n");
+const reply = (id: Message["id"], result: unknown) => send({ id, result });
+const fail = (id: Message["id"], code: number, message: string) => send({ id, error: { code, message } });
+
+async function handle(msg: Message): Promise<void> {
   const { id, method, params } = msg;
-  if (id === undefined) return;
+  if (id === undefined) return; // notification (e.g. notifications/initialized) — nothing to answer
   switch (method) {
     case "initialize": {
       const asked = params?.protocolVersion;
@@ -153,7 +167,7 @@ async function handle(msg) {
         const out = await tool.call(params?.arguments ?? {});
         return reply(id, { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] });
       } catch (e) {
-        return reply(id, { content: [{ type: "text", text: e.message }], isError: true });
+        return reply(id, { content: [{ type: "text", text: (e as Error).message }], isError: true });
       }
     }
     default:
@@ -161,32 +175,26 @@ async function handle(msg) {
   }
 }
 
-function serve() {
+export function serve(): void {
   // stdout is the protocol channel: route stray logs to stderr.
-  console.log = (...a) => console.error(...a);
+  console.log = (...a: unknown[]) => console.error(...a);
   let buffer = "";
   process.stdin.setEncoding("utf8");
-  process.stdin.on("data", (chunk) => {
+  process.stdin.on("data", (chunk: string) => {
     buffer += chunk;
-    let nl;
+    let nl: number;
     while ((nl = buffer.indexOf("\n")) >= 0) {
       const line = buffer.slice(0, nl).trim();
       buffer = buffer.slice(nl + 1);
       if (!line) continue;
-      let msg;
+      let msg: Message;
       try {
         msg = JSON.parse(line);
       } catch {
         fail(null, -32700, "Parse error");
         continue;
       }
-      handle(msg).catch((e) => fail(msg.id ?? null, -32603, e.message));
+      handle(msg).catch((e) => fail(msg.id ?? null, -32603, (e as Error).message));
     }
   });
 }
-
-// `graph-excel-mcp login` signs in from a terminal; otherwise serve MCP. The pack script imports TOOLS without serving.
-if (require.main === module && process.argv[2] === "login") require("./graph").cliLogin();
-else if (!process.env.GRAPH_EXCEL_NO_SERVE) serve();
-
-module.exports = { TOOLS };

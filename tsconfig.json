@@ -1,0 +1,18 @@
+{
+  // Node >= 22.18 runs .ts directly (type stripping), so only erasable syntax is allowed:
+  // no enum / namespace / parameter properties; imports use the .ts extension.
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": ["src", "test", "scripts"]
+}

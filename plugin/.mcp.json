@@ -3,7 +3,7 @@
     "graph-excel": {
       "command": "node",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/server/mcp.js"
+        "${CLAUDE_PLUGIN_ROOT}/server/dist/cli.js"
       ]
     }
   }

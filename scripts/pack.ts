@@ -1,26 +1,30 @@
-#!/usr/bin/env node
-// Builds both distributions from the same zero-dependency server files:
-//   build/graph-excel-<version>.mcpb  Claude Desktop extension (chat)
-//   plugin/                           Claude plugin (Cowork, Claude Code): skill + MCP server
+// Builds both distributions from the compiled dist/ (run `npm run build` first; `npm run pack` does both):
+//   build/graph-excel-mcp-<version>.mcpb  Claude Desktop extension (chat)
+//   plugin/                               Claude plugin (Cowork, Claude Code): skill + MCP server
 // The token stays in ~/.graph-excel (GRAPH_EXCEL_HOME), outside both, so updates keep the sign-in.
-const { execFileSync } = require("child_process");
-const fs = require("fs");
-const path = require("path");
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { TOOLS } from "../src/mcp.ts";
 
-process.env.GRAPH_EXCEL_NO_SERVE = "1";
-const ROOT = path.join(__dirname, "..");
-const { TOOLS } = require(path.join(ROOT, "mcp.js"));
-const pkg = require(path.join(ROOT, "package.json"));
-const SERVER_FILES = ["graph.js", "excel.js", "mcp.js", "workbooks.example.json", "LICENSE"];
+const ROOT = path.join(import.meta.dirname, "..");
+const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+const REPO = "https://github.com/mickey-ichi/graph-excel-mcp";
+const AUTHOR = { name: "mickey-ichi", url: "https://github.com/mickey-ichi" };
+const KEYWORDS = ["excel", "sharepoint", "microsoft-graph", "teams"];
 const DESCRIPTION =
   "Read and edit Excel workbooks on SharePoint/Teams through Microsoft Graph, no browser: base-checked writes, " +
   "read-back verification, 「-----update-----」 test-case updates with yellow fill.";
-const json = (v) => JSON.stringify(v, null, 2) + "\n";
+const json = (v: unknown) => JSON.stringify(v, null, 2) + "\n";
 
-function copyServer(dir) {
+if (!fs.existsSync(path.join(ROOT, "dist", "cli.js"))) throw new Error("dist/ is missing — run npm run build first");
+
+// Server layout shared by both: dist/*.js + an ESM package.json (dist/ reads its version from it).
+function copyServer(dir: string) {
   fs.mkdirSync(dir, { recursive: true });
-  for (const f of SERVER_FILES) fs.copyFileSync(path.join(ROOT, f), path.join(dir, f));
-  fs.writeFileSync(path.join(dir, "package.json"), json({ name: pkg.name, version: pkg.version, license: pkg.license }));
+  fs.cpSync(path.join(ROOT, "dist"), path.join(dir, "dist"), { recursive: true });
+  for (const f of ["LICENSE", "workbooks.example.json"]) fs.copyFileSync(path.join(ROOT, f), path.join(dir, f));
+  fs.writeFileSync(path.join(dir, "package.json"), json({ name: pkg.name, version: pkg.version, type: "module", license: pkg.license }));
 }
 
 // ---------- .mcpb ----------
@@ -42,16 +46,16 @@ fs.writeFileSync(
       "device code (login_status gives you the code); the refresh token is kept in the data folder, not in the " +
       "extension. Every write is a dry run until approved, checks the cells' current content first and reads them " +
       "back afterwards.",
-    author: { name: "mickey-ichi", url: "https://github.com/mickey-ichi" },
-    repository: { type: "git", url: "https://github.com/mickey-ichi/graph-excel-mcp" },
-    homepage: "https://github.com/mickey-ichi/graph-excel-mcp",
-    support: "https://github.com/mickey-ichi/graph-excel-mcp/issues",
-    license: "MIT",
-    keywords: ["excel", "sharepoint", "microsoft-graph", "teams"],
+    author: AUTHOR,
+    repository: { type: "git", url: REPO },
+    homepage: REPO,
+    support: `${REPO}/issues`,
+    license: pkg.license,
+    keywords: KEYWORDS,
     server: {
       type: "node",
-      entry_point: "mcp.js",
-      mcp_config: { command: "node", args: ["${__dirname}/mcp.js"], env: { GRAPH_EXCEL_HOME: "${user_config.home_dir}" } },
+      entry_point: "dist/cli.js",
+      mcp_config: { command: "node", args: ["${__dirname}/dist/cli.js"], env: { GRAPH_EXCEL_HOME: "${user_config.home_dir}" } },
     },
     user_config: {
       home_dir: {
@@ -66,7 +70,7 @@ fs.writeFileSync(
     // No `compatibility` block: Claude Desktop runs it on its built-in Node, so users need no Node install.
   }),
 );
-const mcpb = (...args) => execFileSync("npx", ["--yes", "@anthropic-ai/mcpb@2.1.2", ...args], { stdio: "inherit" });
+const mcpb = (...args: string[]) => execFileSync("npx", ["--yes", "@anthropic-ai/mcpb@2.1.2", ...args], { stdio: "inherit" });
 mcpb("validate", path.join(stage, "manifest.json"));
 fs.rmSync(out, { force: true });
 mcpb("pack", stage, out);
@@ -77,9 +81,9 @@ fs.rmSync(PLUGIN, { recursive: true, force: true });
 fs.mkdirSync(path.join(PLUGIN, ".claude-plugin"), { recursive: true });
 fs.writeFileSync(
   path.join(PLUGIN, ".claude-plugin", "plugin.json"),
-  json({ name: "graph-excel", displayName: "Graph Excel", version: pkg.version, description: DESCRIPTION, author: { name: "mickey-ichi", url: "https://github.com/mickey-ichi" }, homepage: "https://github.com/mickey-ichi/graph-excel-mcp", repository: "https://github.com/mickey-ichi/graph-excel-mcp", keywords: ["excel", "sharepoint", "microsoft-graph"], license: "MIT" }),
+  json({ name: "graph-excel", displayName: "Graph Excel", version: pkg.version, description: DESCRIPTION, author: AUTHOR, homepage: REPO, repository: REPO, keywords: KEYWORDS, license: pkg.license }),
 );
-fs.writeFileSync(path.join(PLUGIN, ".mcp.json"), json({ mcpServers: { "graph-excel": { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server/mcp.js"] } } }));
+fs.writeFileSync(path.join(PLUGIN, ".mcp.json"), json({ mcpServers: { "graph-excel": { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server/dist/cli.js"] } } }));
 copyServer(path.join(PLUGIN, "server"));
 fs.cpSync(path.join(ROOT, "skills"), path.join(PLUGIN, "skills"), { recursive: true, dereference: true });
 fs.copyFileSync(path.join(ROOT, "README.md"), path.join(PLUGIN, "README.md"));

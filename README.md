@@ -1,6 +1,6 @@
 # graph-excel-mcp
 
-MCP server for reading and editing Excel workbooks on SharePoint, OneDrive or Teams through Microsoft Graph, without a browser. It has no dependencies and needs Node 18 or later.
+MCP server for reading and editing Excel workbooks on SharePoint, OneDrive or Teams through Microsoft Graph, without a browser. It is written in TypeScript, has no runtime dependencies, and runs on Node 18 or later.
 
 It is built for workbooks that several people edit at once:
 
@@ -20,7 +20,9 @@ claude mcp add --scope user graph-excel -- npx -y graph-excel-mcp
 { "mcpServers": { "graph-excel": { "command": "npx", "args": ["-y", "graph-excel-mcp"] } } }
 ```
 
-**Claude Desktop extension / Claude plugin (Cowork):** clone the repo and run `npm run pack`. This builds `build/graph-excel-mcp-<version>.mcpb` and the `plugin/` folder. The plugin folder contains the server and a `graph-excel` skill.
+**Claude Desktop extension:** download `graph-excel-mcp-<version>.mcpb` from the [latest release](https://github.com/mickey-ichi/graph-excel-mcp/releases/latest) and open it.
+
+**Claude plugin (Cowork, Claude Code):** install the `plugin/` folder of this repo. It contains the server and a `graph-excel` skill.
 
 ## Sign in
 
@@ -47,6 +49,27 @@ Instead of pasting the SharePoint URL every time, you can add aliases to `~/.gra
 
 - Every call runs inside a workbook session. Sessionless calls on large workbooks can time out with a 504 even though the write was applied.
 - Line breaks are sent as `\n`, which Excel stores as `\r\n`. If you write `\r\n` directly, the cell ends up with a stray `_x000D_`.
+
+## Development
+
+Development needs Node 22.18 or later, which runs the `.ts` sources directly.
+
+| Command | What it does |
+|---|---|
+| `npm run mcp` / `npm run login` | Runs the server or the terminal sign-in from `src/` |
+| `npm run typecheck` | Runs `tsc` in strict mode with no emit |
+| `npm test` | Runs offline tests: range parsing, update composition, and the MCP handshake on `src/` and `dist/` |
+| `npm run build` | Compiles `src/` to `dist/`, which is what npm, the `.mcpb` and the plugin run |
+| `npm run pack` | Builds, then writes `build/*.mcpb` (gitignored) and `plugin/` (committed) |
+
+Layout:
+
+| Path | Contents |
+|---|---|
+| `src/graph.ts` | Auth and the Graph client |
+| `src/excel.ts` | Workbook operations |
+| `src/mcp.ts` | Tools and the JSON-RPC server |
+| `src/cli.ts` | Entry point |
 
 ## Release
 
