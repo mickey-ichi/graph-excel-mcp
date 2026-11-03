@@ -1,0 +1,18 @@
+{
+  "name": "graph-excel",
+  "displayName": "Graph Excel",
+  "version": "0.3.0",
+  "description": "Read and edit Excel workbooks on SharePoint/Teams through Microsoft Graph, no browser: base-checked writes, read-back verification, 「-----update-----」 test-case updates with yellow fill.",
+  "author": {
+    "name": "mickey-ichi",
+    "url": "https://github.com/mickey-ichi"
+  },
+  "homepage": "https://github.com/mickey-ichi/graph-excel-mcp",
+  "repository": "https://github.com/mickey-ichi/graph-excel-mcp",
+  "keywords": [
+    "excel",
+    "sharepoint",
+    "microsoft-graph"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "graph-excel": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/server/mcp.js"
+      ]
+    }
+  }
+}

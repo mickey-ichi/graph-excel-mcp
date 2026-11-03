@@ -1,0 +1,44 @@
+{
+  "name": "graph-excel-mcp",
+  "version": "0.3.0",
+  "description": "MCP server for reading and editing Excel workbooks on SharePoint/OneDrive via Microsoft Graph: base-checked writes, read-back verification, fills. Zero dependencies.",
+  "license": "MIT",
+  "author": "mickey-ichi",
+  "homepage": "https://github.com/mickey-ichi/graph-excel-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mickey-ichi/graph-excel-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mickey-ichi/graph-excel-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "excel",
+    "sharepoint",
+    "onedrive",
+    "microsoft-graph",
+    "claude"
+  ],
+  "main": "excel.js",
+  "bin": {
+    "graph-excel-mcp": "mcp.js"
+  },
+  "files": [
+    "graph.js",
+    "excel.js",
+    "mcp.js",
+    "workbooks.example.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "login": "node mcp.js login",
+    "mcp": "node mcp.js",
+    "pack": "node scripts/pack.js"
+  }
+}
