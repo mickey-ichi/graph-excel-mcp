@@ -81,6 +81,11 @@ git tag v0.3.1 && git push origin v0.3.1
 
 The `Publish` workflow runs the tests, publishes to npm through trusted publishing (no token or OTP; provenance attached) and creates a GitHub release with the `.mcpb` attached.
 
+## Support
+
+If graph-excel-mcp saves you time, you can support its development through
+[GitHub Sponsors](https://github.com/sponsors/mickey-ichi). Bug reports and pull requests are just as welcome.
+
 ## License
 
 MIT

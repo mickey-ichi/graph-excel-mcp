@@ -12,6 +12,10 @@
   "bugs": {
     "url": "https://github.com/mickey-ichi/graph-excel-mcp/issues"
   },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/mickey-ichi"
+  },
   "keywords": [
     "mcp",
     "mcp-server",
