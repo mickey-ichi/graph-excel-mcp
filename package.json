@@ -1,6 +1,6 @@
 {
   "name": "graph-excel-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "MCP server for reading and editing Excel workbooks on SharePoint/OneDrive via Microsoft Graph: base-checked writes, read-back verification, fills. Zero dependencies.",
   "license": "MIT",
   "author": "mickey-ichi",
