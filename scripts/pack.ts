@@ -12,6 +12,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"))
 const REPO = "https://github.com/mickey-ichi/graph-excel-mcp";
 const AUTHOR = { name: "mickey-ichi", url: "https://github.com/mickey-ichi" };
 const KEYWORDS = ["excel", "sharepoint", "microsoft-graph", "teams"];
+const ICON = path.join(ROOT, "assets", "icon.png"); // square PNG, 512–2048 px
 const DESCRIPTION =
   "Read and edit Excel workbooks on SharePoint/Teams through Microsoft Graph, no browser: base-checked writes, " +
   "read-back verification, 「-----update-----」 test-case updates with yellow fill.";
@@ -33,6 +34,7 @@ const out = path.join(ROOT, "build", `graph-excel-mcp-${pkg.version}.mcpb`);
 fs.rmSync(stage, { recursive: true, force: true });
 copyServer(stage);
 fs.copyFileSync(path.join(ROOT, "README.md"), path.join(stage, "README.md"));
+fs.copyFileSync(ICON, path.join(stage, "icon.png"));
 fs.writeFileSync(
   path.join(stage, "manifest.json"),
   json({
@@ -52,6 +54,7 @@ fs.writeFileSync(
     support: `${REPO}/issues`,
     license: pkg.license,
     keywords: KEYWORDS,
+    icon: "icon.png",
     server: {
       type: "node",
       entry_point: "dist/cli.js",
@@ -81,11 +84,17 @@ fs.rmSync(PLUGIN, { recursive: true, force: true });
 fs.mkdirSync(path.join(PLUGIN, ".claude-plugin"), { recursive: true });
 fs.writeFileSync(
   path.join(PLUGIN, ".claude-plugin", "plugin.json"),
-  json({ name: "graph-excel", displayName: "Graph Excel", version: pkg.version, description: DESCRIPTION, author: AUTHOR, homepage: REPO, repository: REPO, keywords: KEYWORDS, license: pkg.license }),
+  json({
+    name: "graph-excel", displayName: "Graph Excel", version: pkg.version, description: DESCRIPTION, author: AUTHOR,
+    homepage: REPO, repository: REPO, keywords: KEYWORDS, license: pkg.license,
+    // Read by the plugin directory listing (Claude Code ignores them).
+    privacyPolicyUrl: `${REPO}#privacy`, supportUrl: `${REPO}/issues`, documentationUrl: `${REPO}#readme`,
+  }),
 );
 fs.writeFileSync(path.join(PLUGIN, ".mcp.json"), json({ mcpServers: { "graph-excel": { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server/dist/cli.js"] } } }));
 copyServer(path.join(PLUGIN, "server"));
 fs.cpSync(path.join(ROOT, "skills"), path.join(PLUGIN, "skills"), { recursive: true, dereference: true });
 fs.copyFileSync(path.join(ROOT, "README.md"), path.join(PLUGIN, "README.md"));
+fs.copyFileSync(ICON, path.join(PLUGIN, ".claude-plugin", "icon.png"));
 
 console.log(`\n${path.relative(ROOT, out)}\nplugin/`);

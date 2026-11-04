@@ -81,6 +81,14 @@ git tag v0.3.1 && git push origin v0.3.1
 
 The `Publish` workflow runs the tests, publishes to npm through trusted publishing (no token or OTP; provenance attached) and creates a GitHub release with the `.mcpb` attached.
 
+## Privacy
+
+graph-excel-mcp has no server of its own and collects nothing. It signs in to Microsoft with a device code and keeps
+the refresh token only in `~/.graph-excel/token.json` (mode 600) on your computer. It talks to Microsoft only —
+`login.microsoftonline.com` to sign in and `graph.microsoft.com` to read and write the workbooks you point it at.
+Cell contents go to Claude only when you ask for them, and are then handled under your Claude plan's terms. No
+telemetry, no third-party services.
+
 ## Support
 
 If graph-excel-mcp saves you time, you can support its development through

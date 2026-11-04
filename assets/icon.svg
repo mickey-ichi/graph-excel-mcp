@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14532D"/>
+      <stop offset="1" stop-color="#0891B2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#g)"/>
+  <!-- ears -->
+  <g>
+    <circle cx="290" cy="330" r="142" fill="#fff"/>
+    <circle cx="734" cy="330" r="142" fill="#fff"/>
+  </g>
+  <!-- head -->
+  <ellipse cx="512" cy="590" rx="290" ry="270" fill="#fff"/>
+  <!-- B -->
+  <text x="512" y="720" text-anchor="middle" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif"
+        font-weight="900" font-size="380" fill="url(#g)">E</text>
+</svg>

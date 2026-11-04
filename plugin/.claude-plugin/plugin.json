@@ -15,5 +15,8 @@
     "microsoft-graph",
     "teams"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "privacyPolicyUrl": "https://github.com/mickey-ichi/graph-excel-mcp#privacy",
+  "supportUrl": "https://github.com/mickey-ichi/graph-excel-mcp/issues",
+  "documentationUrl": "https://github.com/mickey-ichi/graph-excel-mcp#readme"
 }
