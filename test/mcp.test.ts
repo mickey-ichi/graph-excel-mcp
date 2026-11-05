@@ -6,7 +6,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.join(import.meta.dirname, "..");
-const TOOL_NAMES = ["login_status", "resolve", "read_range", "write_values", "append_update", "set_fill"];
+const TOOL_NAMES = [
+  "login_status", "resolve", "read_range", "write_values", "append_update", "set_fill",
+  "find", "add_sheet", "rename_sheet", "insert_rows", "append_rows", "set_format",
+];
 
 async function handshake(entry: string) {
   const p = spawn(process.execPath, [entry], { stdio: ["pipe", "pipe", "inherit"] });

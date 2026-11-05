@@ -44,6 +44,14 @@ Instead of pasting the SharePoint URL every time, you can add aliases to `~/.gra
 | `write_values` | Writes blocks of values with a base check (`expected`) and read-back verification |
 | `append_update` | Adds or replaces a 「-----update-----」 section under a cell's existing text, keeping the original part byte-identical, and can fill the row with a color |
 | `set_fill` | Sets or clears the fill color of one or more ranges in a single batch |
+| `find` | Searches cell text across all sheets (or one), substring or regex, and returns addresses with hashes |
+| `add_sheet` | Adds an empty sheet (Excel name rules, no duplicates), optionally at a position |
+| `rename_sheet` | Renames a sheet |
+| `insert_rows` | Inserts empty rows above a row and verifies the shifted row moved intact |
+| `append_rows` | Appends rows below the last used row; the target cells must still be empty |
+| `set_format` | Bold, italic, font color and size, wrap, alignment and number format for one or more ranges |
+
+Every tool that changes the workbook is a dry run until `send: true`. Nothing deletes sheets, rows or cells.
 
 ## Notes
 
