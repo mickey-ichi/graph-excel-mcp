@@ -519,16 +519,30 @@ export async function setFormat({ file, sheet, ranges, send = false, ...opts }) 
     }
     const res = await wbx.batch(reqs);
     const errors = res.filter((r) => r.status >= 400).map((r) => JSON.stringify(r.body?.error ?? r.body).slice(0, 200));
+    // Read everything back: font, format (wrap/alignment) and the number format of every cell.
     const after = Object.keys(font).length ? await readFonts() : [];
+    const fmtAfter = Object.keys(format).length
+        ? (await wbx.batch(rgs.map((r) => ({ method: "GET", url: `${wbx.rangeUrl(sheet, r.address)}/format` })))).map((r, i) => wbx.ok(r, `read format ${rgs[i].address}`))
+        : [];
+    const nfAfter = numberFormat !== undefined
+        ? (await wbx.batch(rgs.map((r) => ({ method: "GET", url: `${wbx.rangeUrl(sheet, r.address)}?$select=numberFormat` })))).map((r, i) => wbx.ok(r, `read numberFormat ${rgs[i].address}`).numberFormat)
+        : [];
     const want = pick(font);
     return {
         dryRun: false,
         sheet,
-        ranges: rgs.map((r, k) => ({
-            range: r.address,
-            status: errors.length ? "error" : after[k] && JSON.stringify(pick(after[k])) !== JSON.stringify(want) ? "mismatch" : "applied-verified",
-            ...(after[k] ? { fontNow: pick(after[k]) } : {}),
-        })),
+        ranges: rgs.map((r, k) => {
+            const fontOk = !after[k] || JSON.stringify(pick(after[k])) === JSON.stringify(want);
+            const formatOk = !fmtAfter[k] || Object.entries(format).every(([key, v]) => fmtAfter[k][key] === v);
+            const nfOk = !nfAfter[k] || nfAfter[k].every((row) => row.every((v) => v === numberFormat));
+            return {
+                range: r.address,
+                status: errors.length ? "error" : fontOk && formatOk && nfOk ? "applied-verified" : "mismatch",
+                ...(after[k] ? { fontNow: pick(after[k]) } : {}),
+                ...(fmtAfter[k] ? { formatNow: Object.fromEntries(Object.keys(format).map((key) => [key, fmtAfter[k][key]])) } : {}),
+                ...(nfAfter[k] && !nfOk ? { numberFormatNow: nfAfter[k] } : {}),
+            };
+        }),
         ...(errors.length ? { errors } : {}),
     };
 }
