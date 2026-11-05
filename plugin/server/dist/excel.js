@@ -370,3 +370,205 @@ export async function setFill({ file, sheet, ranges, color = null, send = false 
     });
     return { dryRun: false, sheet, ranges: rows };
 }
+// ---------- sheets ----------
+const DRY_NOTE = "Nothing written. Call again with send=true after the user approved.";
+async function sheetNames(wbx) {
+    const ws = await wbx.call("GET", `${wbx.base}/worksheets?$select=name`);
+    return ws.value.map((w) => w.name);
+}
+/** Excel's sheet-name rules; returns the trimmed name or throws. Exported for tests. */
+export function checkSheetName(name, existing) {
+    const n = String(name ?? "").trim();
+    if (!n)
+        throw new Error("Sheet name is empty");
+    if (n.length > 31)
+        throw new Error(`Sheet name "${n}" is longer than 31 characters`);
+    if (/[\[\]:*?/\\]/.test(n) || /^'|'$/.test(n))
+        throw new Error(`Sheet name "${n}" contains [ ] : * ? / \\ or starts/ends with '`);
+    if (n.toLowerCase() === "history")
+        throw new Error('"History" is reserved by Excel');
+    const clash = existing.find((e) => e.toLowerCase() === n.toLowerCase());
+    if (clash)
+        throw new Error(`A sheet named "${clash}" already exists`);
+    return n;
+}
+export async function addSheet({ file, name, position, send = false }) {
+    const wbx = await open(file);
+    const before = await sheetNames(wbx);
+    const n = checkSheetName(name, before);
+    if (position !== undefined && (!Number.isInteger(position) || position < 0 || position > before.length))
+        throw new Error(`position must be 0..${before.length} (0 = first)`);
+    const plan = { name: n, position: position ?? before.length, sheetsBefore: before };
+    if (!send)
+        return { dryRun: true, ...plan, note: DRY_NOTE };
+    await wbx.call("POST", `${wbx.base}/worksheets/add`, { name: n });
+    if (position !== undefined)
+        await wbx.call("PATCH", wbx.sheetUrl(n), { position });
+    const after = await sheetNames(wbx);
+    return { dryRun: false, name: n, status: after.includes(n) ? "created-verified" : "missing-after-create", sheets: after };
+}
+export async function renameSheet({ file, sheet, newName, send = false }) {
+    const wbx = await open(file);
+    const before = await sheetNames(wbx);
+    if (!before.includes(sheet))
+        throw new Error(`No sheet named "${sheet}" — sheets: ${before.join(", ")}`);
+    const n = checkSheetName(newName, before.filter((s) => s !== sheet));
+    if (!send)
+        return { dryRun: true, from: sheet, to: n, note: DRY_NOTE };
+    await wbx.call("PATCH", wbx.sheetUrl(sheet), { name: n });
+    const after = await sheetNames(wbx);
+    return { dryRun: false, from: sheet, to: n, status: after.includes(n) && !after.includes(sheet) ? "renamed-verified" : "mismatch", sheets: after };
+}
+// ---------- rows ----------
+/** Used range of a sheet (values only) as a Range, or null when the sheet is empty. */
+async function usedRange(wbx, sheet) {
+    const u = await wbx.call("GET", `${wbx.sheetUrl(sheet)}/usedRange(valuesOnly=true)?$select=address,values`);
+    const addr = String(u.address).replace(/^.*!/, "");
+    const rg = parseRange(addr);
+    const empty = rg.rows === 1 && rg.cols === 1 && (u.values?.[0]?.[0] ?? "") === "";
+    return empty ? null : rg;
+}
+/** Row r across the used columns (at least column A). */
+const rowRange = (r, used) => parseRange(`A${r}:${colName(used ? used.c1 + used.cols - 1 : 1)}${r}`);
+const rowHash = (row) => `sha256:${hash(JSON.stringify(row.map((v) => normEol(v))))}`;
+export async function insertRows({ file, sheet, row, count = 1, send = false }) {
+    const r = Number(row), n = Number(count);
+    if (!Number.isInteger(r) || r < 1)
+        throw new Error("row must be a positive integer (the new rows go above it)");
+    if (!Number.isInteger(n) || n < 1 || n > 1000)
+        throw new Error("count must be 1..1000");
+    const wbx = await open(file);
+    const used = await usedRange(wbx, sheet);
+    const [cur] = await readValues(wbx, sheet, [rowRange(r, used)]);
+    const plan = { sheet, insertAt: r, count: n, shiftsDown: { row: r, preview: preview(cur[0].join(" | "), 120), to: r + n } };
+    if (!send)
+        return { dryRun: true, ...plan, note: DRY_NOTE };
+    await wbx.call("POST", `${wbx.sheetUrl(sheet)}/range(address='${r}:${r + n - 1}')/insert`, { shift: "Down" });
+    // Verify: the old row r now sits at r+n, and the inserted rows are empty.
+    const [moved, blank] = await readValues(wbx, sheet, [rowRange(r + n, used), parseRange(`A${r}:${colName(used ? used.c1 + used.cols - 1 : 1)}${r + n - 1}`)]);
+    const ok = rowHash(moved[0]) === rowHash(cur[0]) && blank.every((row) => row.every((v) => v === "" || v === null));
+    return { dryRun: false, ...plan, status: ok ? "inserted-verified" : "mismatch" };
+}
+/** First empty row below the used range (1 for an empty sheet). Exported for tests. */
+export const nextRow = (used) => (used ? used.r1 + used.rows : 1);
+export async function appendRows({ file, sheet, values, column = "A", send = false }) {
+    if (!Array.isArray(values) || !values.length || !values.every(Array.isArray))
+        throw new Error("values must be a non-empty 2D array (one array per row)");
+    const width = Math.max(...values.map((v) => v.length));
+    const grid = values.map((v) => [...v, ...Array(width - v.length).fill("")]);
+    const c = String(column).toUpperCase();
+    if (!/^[A-Z]{1,3}$/.test(c))
+        throw new Error('column must be a column letter like "A"');
+    const wbx = await open(file);
+    const start = nextRow(await usedRange(wbx, sheet));
+    const range = `${c}${start}:${colName(colNum(c) + width - 1)}${start + grid.length - 1}`;
+    // Base check: every target cell must still be empty when written.
+    const res = await writeValues({ file, sheet, send, writes: [{ range, values: grid, expected: grid.map((row) => row.map(() => "")) }] });
+    return { ...res, appendedAt: range };
+}
+/** Font/format patches from the arguments; throws on invalid values. Exported for tests. */
+export function formatPatch(a) {
+    const font = {};
+    const format = {};
+    if (a.bold !== undefined)
+        font.bold = Boolean(a.bold);
+    if (a.italic !== undefined)
+        font.italic = Boolean(a.italic);
+    if (a.fontColor !== undefined) {
+        if (!/^#[0-9A-Fa-f]{6}$/.test(String(a.fontColor)))
+            throw new Error('fontColor must be like "#C00000"');
+        font.color = String(a.fontColor).toUpperCase();
+    }
+    if (a.fontSize !== undefined) {
+        if (!(Number(a.fontSize) >= 1 && Number(a.fontSize) <= 409))
+            throw new Error("fontSize must be 1..409");
+        font.size = Number(a.fontSize);
+    }
+    if (a.wrapText !== undefined)
+        format.wrapText = Boolean(a.wrapText);
+    if (a.horizontalAlignment !== undefined) {
+        if (!["General", "Left", "Center", "Right", "Justify"].includes(a.horizontalAlignment))
+            throw new Error("horizontalAlignment must be General, Left, Center, Right or Justify");
+        format.horizontalAlignment = a.horizontalAlignment;
+    }
+    const numberFormat = a.numberFormat === undefined ? undefined : String(a.numberFormat);
+    if (!Object.keys(font).length && !Object.keys(format).length && numberFormat === undefined)
+        throw new Error("Nothing to change: pass bold, italic, fontColor, fontSize, wrapText, horizontalAlignment or numberFormat");
+    return { font, format, numberFormat };
+}
+export async function setFormat({ file, sheet, ranges, send = false, ...opts }) {
+    if (!Array.isArray(ranges) || !ranges.length)
+        throw new Error("ranges must be a non-empty array of contiguous ranges");
+    const rgs = ranges.map(parseRange);
+    const { font, format, numberFormat } = formatPatch(opts);
+    const wbx = await open(file);
+    const readFonts = async () => (await wbx.batch(rgs.map((r) => ({ method: "GET", url: `${wbx.rangeUrl(sheet, r.address)}/format/font` })))).map((r, i) => wbx.ok(r, `read font ${rgs[i].address}`));
+    const pick = (f) => Object.fromEntries(Object.keys(font).map((k) => [k, typeof f[k] === "string" ? f[k].toUpperCase() : f[k]]));
+    const before = Object.keys(font).length ? await readFonts() : [];
+    const change = { font, ...(Object.keys(format).length ? { format } : {}), ...(numberFormat !== undefined ? { numberFormat } : {}) };
+    if (!send)
+        return { dryRun: true, sheet, ranges: rgs.map((r, k) => ({ range: r.address, fontNow: before[k] ? pick(before[k]) : undefined })), change, note: DRY_NOTE };
+    const reqs = [];
+    for (const r of rgs) {
+        if (Object.keys(font).length)
+            reqs.push({ method: "PATCH", url: `${wbx.rangeUrl(sheet, r.address)}/format/font`, body: font });
+        if (Object.keys(format).length)
+            reqs.push({ method: "PATCH", url: `${wbx.rangeUrl(sheet, r.address)}/format`, body: format });
+        if (numberFormat !== undefined)
+            reqs.push({ method: "PATCH", url: wbx.rangeUrl(sheet, r.address), body: { numberFormat: Array.from({ length: r.rows }, () => Array(r.cols).fill(numberFormat)) } });
+    }
+    const res = await wbx.batch(reqs);
+    const errors = res.filter((r) => r.status >= 400).map((r) => JSON.stringify(r.body?.error ?? r.body).slice(0, 200));
+    const after = Object.keys(font).length ? await readFonts() : [];
+    const want = pick(font);
+    return {
+        dryRun: false,
+        sheet,
+        ranges: rgs.map((r, k) => ({
+            range: r.address,
+            status: errors.length ? "error" : after[k] && JSON.stringify(pick(after[k])) !== JSON.stringify(want) ? "mismatch" : "applied-verified",
+            ...(after[k] ? { fontNow: pick(after[k]) } : {}),
+        })),
+        ...(errors.length ? { errors } : {}),
+    };
+}
+/** Cells in `grid` (top-left at `origin`) whose text matches. Exported for tests. */
+export function findInGrid(sheet, origin, grid, test, limit) {
+    const hits = [];
+    for (let i = 0; i < grid.length && hits.length < limit; i++)
+        for (let j = 0; j < grid[i].length && hits.length < limit; j++) {
+            const v = grid[i][j];
+            if (v === null || v === "")
+                continue;
+            if (test(normEol(v)))
+                hits.push({ sheet, address: cellAddr(origin, i, j), value: preview(v, 160), hash: `sha256:${hash(v)}` });
+        }
+    return hits;
+}
+export async function find({ file, text, sheet, regex = false, matchCase = false, limit = 50 }) {
+    const q = String(text ?? "");
+    if (!q)
+        throw new Error("text is empty");
+    const max = Math.min(Math.max(1, Number(limit) || 50), 500);
+    let test;
+    if (regex) {
+        const re = new RegExp(q, matchCase ? "" : "i");
+        test = (s) => re.test(s);
+    }
+    else {
+        const needle = matchCase ? q : q.toLowerCase();
+        test = (s) => (matchCase ? s : s.toLowerCase()).includes(needle);
+    }
+    const wbx = await open(file);
+    const names = sheet ? [sheet] : await sheetNames(wbx);
+    const res = await wbx.batch(names.map((s) => ({ method: "GET", url: `${wbx.sheetUrl(s)}/usedRange(valuesOnly=true)?$select=address,values` })));
+    const hits = [];
+    const skipped = [];
+    res.forEach((r, k) => {
+        if (r.status >= 400)
+            return void skipped.push(names[k]);
+        const origin = parseRange(String(r.body.address).replace(/^.*!/, ""));
+        hits.push(...findInGrid(names[k], origin, r.body.values, test, max - hits.length));
+    });
+    return { text: q, hits, truncated: hits.length >= max, ...(skipped.length ? { unreadableSheets: skipped } : {}) };
+}
