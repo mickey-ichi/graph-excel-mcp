@@ -97,4 +97,17 @@ fs.cpSync(path.join(ROOT, "skills"), path.join(PLUGIN, "skills"), { recursive: t
 fs.copyFileSync(path.join(ROOT, "README.md"), path.join(PLUGIN, "README.md"));
 fs.copyFileSync(ICON, path.join(PLUGIN, ".claude-plugin", "icon.png"));
 
+// ---------- marketplace (outside the Claude directory) ----------
+//   claude plugin marketplace add mickey-ichi/graph-excel-mcp && claude plugin install graph-excel@graph-excel
+fs.mkdirSync(path.join(ROOT, ".claude-plugin"), { recursive: true });
+fs.writeFileSync(
+  path.join(ROOT, ".claude-plugin", "marketplace.json"),
+  json({
+    name: "graph-excel",
+    owner: AUTHOR,
+    metadata: { description: "Graph Excel for Claude Code and Cowork: skill + MCP server for Excel on SharePoint/OneDrive." },
+    plugins: [{ name: "graph-excel", source: "./plugin", version: pkg.version, description: DESCRIPTION, author: AUTHOR, homepage: REPO, license: pkg.license, keywords: KEYWORDS }],
+  }),
+);
+
 console.log(`\n${path.relative(ROOT, out)}\nplugin/`);

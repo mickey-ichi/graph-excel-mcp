@@ -22,7 +22,14 @@ claude mcp add --scope user graph-excel -- npx -y graph-excel-mcp
 
 **Claude Desktop extension:** download `graph-excel-mcp-<version>.mcpb` from the [latest release](https://github.com/mickey-ichi/graph-excel-mcp/releases/latest) and open it.
 
-**Claude plugin (Cowork, Claude Code):** install the `plugin/` folder of this repo. It contains the server and a `graph-excel` skill.
+**Claude plugin (Cowork, Claude Code):** the server and a `graph-excel` skill in one package. This repo is its own marketplace:
+
+```bash
+claude plugin marketplace add mickey-ichi/graph-excel-mcp
+claude plugin install graph-excel@graph-excel
+```
+
+For a whole Claude Team/Enterprise organization, an Owner adds `mickey-ichi/graph-excel-mcp` under *Organization settings → Plugins & skills → Marketplaces*.
 
 ## Sign in
 
