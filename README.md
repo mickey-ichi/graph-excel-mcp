@@ -20,7 +20,7 @@ claude mcp add --scope user graph-excel -- npx -y graph-excel-mcp
 { "mcpServers": { "graph-excel": { "command": "npx", "args": ["-y", "graph-excel-mcp"] } } }
 ```
 
-**Claude Desktop extension:** download `graph-excel-mcp-<version>.mcpb` from the [latest release](https://github.com/mickey-ichi/graph-excel-mcp/releases/latest) and open it.
+**Claude Desktop extension:** download `graph-excel-mcp-<version>.mcpb` from the [latest release](https://github.com/mickey-ichi/graph-excel-mcp/releases/latest) and open it. One install covers both Chat and Cowork in Claude Desktop.
 
 **Claude plugin (Cowork, Claude Code):** install the `plugin/` folder of this repo. It contains the server and a `graph-excel` skill.
 
