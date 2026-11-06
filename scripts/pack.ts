@@ -97,4 +97,30 @@ fs.cpSync(path.join(ROOT, "skills"), path.join(PLUGIN, "skills"), { recursive: t
 fs.copyFileSync(path.join(ROOT, "README.md"), path.join(PLUGIN, "README.md"));
 fs.copyFileSync(ICON, path.join(PLUGIN, ".claude-plugin", "icon.png"));
 
-console.log(`\n${path.relative(ROOT, out)}\nplugin/`);
+// ---------- Official MCP Registry ----------
+// Published by publish.yml after npm; the registry checks the npm package's mcpName.
+fs.writeFileSync(
+  path.join(ROOT, "server.json"),
+  json({
+    $schema: "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+    name: pkg.mcpName,
+    title: "Graph Excel",
+    description: "Read and edit Excel workbooks on SharePoint/OneDrive via Microsoft Graph, with verified writes.",
+    repository: { url: REPO, source: "github" },
+    websiteUrl: `${REPO}#readme`,
+    version: pkg.version,
+    packages: [
+      {
+        registryType: "npm",
+        identifier: pkg.name,
+        version: pkg.version,
+        transport: { type: "stdio" },
+        environmentVariables: [
+          { name: "GRAPH_EXCEL_HOME", description: "Folder for token.json and workbooks.json. Default: ~/.graph-excel", isRequired: false, format: "filepath" },
+        ],
+      },
+    ],
+  }),
+);
+
+console.log(`\n${path.relative(ROOT, out)}\nplugin/\nserver.json`);
