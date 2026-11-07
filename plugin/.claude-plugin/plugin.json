@@ -1,7 +1,7 @@
 {
   "name": "graph-excel",
   "displayName": "Graph Excel",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Read and edit Excel workbooks on SharePoint/Teams through Microsoft Graph, no browser: base-checked writes, read-back verification, 「-----update-----」 test-case updates with yellow fill.",
   "author": {
     "name": "mickey-ichi",
