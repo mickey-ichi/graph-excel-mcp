@@ -1,4 +1,22 @@
+<div align="center">
+
+<img alt="" src="https://raw.githubusercontent.com/mickey-ichi/graph-excel-mcp/main/assets/icon.png" width="104">
+
 # graph-excel-mcp
+
+**Read and edit Excel workbooks on SharePoint and OneDrive from AI agents — without overwriting anyone’s edits.**
+
+[![npm](https://img.shields.io/npm/v/graph-excel-mcp)](https://www.npmjs.com/package/graph-excel-mcp)
+[![downloads](https://img.shields.io/npm/dm/graph-excel-mcp)](https://www.npmjs.com/package/graph-excel-mcp)
+[![CI](https://github.com/mickey-ichi/graph-excel-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/mickey-ichi/graph-excel-mcp/actions/workflows/ci.yml)
+[![provenance](https://img.shields.io/badge/npm-provenance-2f6bff)](https://www.npmjs.com/package/graph-excel-mcp#provenance)
+[![license](https://img.shields.io/npm/l/graph-excel-mcp)](LICENSE)
+
+[npm](https://www.npmjs.com/package/graph-excel-mcp) ·
+[Claude Desktop extension](https://github.com/mickey-ichi/graph-excel-mcp/releases/latest) ·
+[Releases](https://github.com/mickey-ichi/graph-excel-mcp/releases)
+
+</div>
 
 MCP server for reading and editing Excel workbooks on SharePoint, OneDrive or Teams through Microsoft Graph, without a browser. It is written in TypeScript, has no runtime dependencies, and runs on Node 18 or later.
 
