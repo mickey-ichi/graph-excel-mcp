@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/mickey-ichi/graph-excel-mcp#readme",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "graph-excel-mcp",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "transport": {
         "type": "stdio"
       },
